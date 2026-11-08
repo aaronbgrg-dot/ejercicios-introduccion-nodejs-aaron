@@ -1,11 +1,10 @@
-
 {
-  "name": "ejercicio1-informe-sistema",
+  "name": "ejercicio3-informe-archivo",
   "version": "1.0.0",
-  "description": "Informe del sistema con os y picocolors",
-  "main": "sistema.js",
+  "description": "Informe del sistema guardado en archivo con historial",
+  "main": "informe.js",
   "scripts": {
-    "start": "node sistema.js"
+    "start": "node informe.js"
   },
   "license": "ISC",
   "dependencies": {
