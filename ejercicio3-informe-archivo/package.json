@@ -1,1 +1,14 @@
 
+{
+  "name": "ejercicio1-informe-sistema",
+  "version": "1.0.0",
+  "description": "Informe del sistema con os y picocolors",
+  "main": "sistema.js",
+  "scripts": {
+    "start": "node sistema.js"
+  },
+  "license": "ISC",
+  "dependencies": {
+    "picocolors": "^1.1.1"
+  }
+}
