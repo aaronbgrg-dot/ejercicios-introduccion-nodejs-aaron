@@ -1,20 +1,18 @@
-
 const os = require('os');
+const fs = require('fs');
+const path = require('path');
 const pc = require('picocolors');
 
-// Convierte bytes a GB con 2 decimales
 function formatearBytes(bytes) {
   return (bytes / 1024 ** 3).toFixed(2) + ' GB';
 }
 
-// Convierte segundos a formato "Xh Ym"
 function formatearUptime(segundos) {
   const horas = Math.floor(segundos / 3600);
   const minutos = Math.floor((segundos % 3600) / 60);
   return `${horas}h ${minutos}m`;
 }
 
-// Verde < 60 %, amarillo 60-85 %, rojo > 85 %
 function colorearPorcentaje(porcentaje) {
   const texto = `${porcentaje}%`;
   if (porcentaje < 60) return pc.green(texto);
@@ -28,46 +26,100 @@ function calcularPorcentajeMemoria() {
   return Math.round(((total - libre) / total) * 100);
 }
 
-function mostrarLinea(etiqueta, valor) {
-  console.log(`  ${pc.dim(etiqueta.padEnd(16))} ${valor}`);
+// Fecha local en formato "2026-11-01 10:32:15"
+function fechaActual() {
+  const d = new Date();
+  const dos = (n) => String(n).padStart(2, '0');
+  return (
+    `${d.getFullYear()}-${dos(d.getMonth() + 1)}-${dos(d.getDate())} ` +
+    `${dos(d.getHours())}:${dos(d.getMinutes())}:${dos(d.getSeconds())}`
+  );
 }
 
-function mostrarInforme() {
+// Datos del informe como lista de secciones (se usa para texto plano y coloreado)
+function obtenerDatos() {
   const cpus = os.cpus();
   const porcentaje = calcularPorcentajeMemoria();
+  return {
+    porcentaje,
+    secciones: [
+      { titulo: 'Equipo', filas: [['Hostname:', os.hostname()]] },
+      {
+        titulo: 'Sistema',
+        filas: [
+          ['SO:', os.type()],
+          ['Versión:', os.release()],
+          ['Arquitectura:', os.arch()],
+        ],
+      },
+      { titulo: 'Usuario', filas: [['Usuario actual:', os.userInfo().username]] },
+      {
+        titulo: 'Procesador',
+        filas: [
+          ['Modelo:', cpus[0] ? cpus[0].model : 'desconocido'],
+          ['Nº de CPUs:', String(cpus.length)],
+        ],
+      },
+      {
+        titulo: 'Memoria',
+        filas: [
+          ['Total:', formatearBytes(os.totalmem())],
+          ['Libre:', formatearBytes(os.freemem())],
+          ['Usada:', `${porcentaje}%`],
+        ],
+      },
+      { titulo: 'Tiempo activo', filas: [['Uptime:', formatearUptime(os.uptime())]] },
+    ],
+  };
+}
 
+// Texto plano (sin códigos de color) para guardar en archivo
+function construirTextoPlano(secciones) {
+  const lineas = ['=== INFORME DEL SISTEMA ===', ''];
+  for (const { titulo, filas } of secciones) {
+    lineas.push(titulo);
+    for (const [etiqueta, valor] of filas) {
+      lineas.push(`  ${etiqueta.padEnd(16)} ${valor}`);
+    }
+    lineas.push('');
+  }
+  return lineas.join('\n');
+}
+
+// Versión coloreada solo para la consola
+function mostrarPorConsola(secciones, porcentaje) {
   console.log();
   console.log(pc.bold(pc.cyan('=== INFORME DEL SISTEMA ===')));
   console.log();
-
-  console.log(pc.bold(pc.cyan('Equipo')));
-  mostrarLinea('Hostname:', pc.white(os.hostname()));
-  console.log();
-
-  console.log(pc.bold(pc.cyan('Sistema')));
-  mostrarLinea('SO:', pc.white(os.type()));
-  mostrarLinea('Versión:', pc.white(os.release()));
-  mostrarLinea('Arquitectura:', pc.white(os.arch()));
-  console.log();
-
-  console.log(pc.bold(pc.cyan('Usuario')));
-  mostrarLinea('Usuario actual:', pc.green(os.userInfo().username));
-  console.log();
-
-  console.log(pc.bold(pc.cyan('Procesador')));
-  mostrarLinea('Modelo:', pc.white(cpus[0] ? cpus[0].model : 'desconocido'));
-  mostrarLinea('Nº de CPUs:', pc.green(String(cpus.length)));
-  console.log();
-
-  console.log(pc.bold(pc.cyan('Memoria')));
-  mostrarLinea('Total:', pc.white(formatearBytes(os.totalmem())));
-  mostrarLinea('Libre:', pc.white(formatearBytes(os.freemem())));
-  mostrarLinea('Usada:', colorearPorcentaje(porcentaje));
-  console.log();
-
-  console.log(pc.bold(pc.cyan('Tiempo activo')));
-  mostrarLinea('Uptime:', pc.green(formatearUptime(os.uptime())));
-  console.log();
+  for (const { titulo, filas } of secciones) {
+    console.log(pc.bold(pc.cyan(titulo)));
+    for (const [etiqueta, valor] of filas) {
+      const valorColoreado = etiqueta === 'Usada:' ? colorearPorcentaje(porcentaje) : pc.white(valor);
+      console.log(`  ${pc.dim(etiqueta.padEnd(16))} ${valorColoreado}`);
+    }
+    console.log();
+  }
 }
 
-mostrarInforme();
+function main() {
+  const { porcentaje, secciones } = obtenerDatos();
+
+  // 1. Mostrar por pantalla (con colores)
+  mostrarPorConsola(secciones, porcentaje);
+
+  try {
+    // 2. informe.txt: se sobrescribe en cada ejecución (texto plano)
+    fs.writeFileSync(path.join(__dirname, 'informe.txt'), construirTextoPlano(secciones));
+
+    // 3. historial.log: se añade una línea por ejecución
+    const linea = `${fechaActual()} | RAM usada: ${porcentaje}%\n`;
+    fs.appendFileSync(path.join(__dirname, 'historial.log'), linea);
+
+    console.log(pc.green('✔ Informe guardado en informe.txt.'));
+  } catch (err) {
+    console.error(pc.bgRed(pc.white(` ERROR al guardar: ${err.message} `)));
+    process.exit(1);
+  }
+}
+
+main();
