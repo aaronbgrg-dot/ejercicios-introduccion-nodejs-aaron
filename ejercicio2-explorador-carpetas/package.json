@@ -1,1 +1,14 @@
 
+{
+  "name": "ejercicio2-explorador-carpetas",
+  "version": "1.0.0",
+  "description": "Explorador de carpetas con fs y picocolors",
+  "main": "listar.js",
+  "scripts": {
+    "start": "node listar.js"
+  },
+  "license": "ISC",
+  "dependencies": {
+    "picocolors": "^1.1.1"
+  }
+}
